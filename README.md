@@ -12,16 +12,16 @@ You give it a raw **HTML file**, it runs **Google Lighthouse** behind the scenes
 ---
 
 ## ✨ Features
-- ߖ️ Simple web UI (drag & drop your HTML)  
+- Simple web UI (drag & drop your HTML)  
 - ⚡ Runs Lighthouse audits (Performance, SEO, Accessibility, Best Practices)  
-- ߛ️ Auto-fixes applied using Cheerio:
+- Auto-fixes applied using Cheerio:
   - Adds missing meta tags (charset, viewport, description, lang)  
   - Ensures `alt`, `loading="lazy"`, and `decoding="async"` on images  
   - Secures `target="_blank"` links with `rel="noopener noreferrer"`  
   - Defers scripts for faster load  
   - Fixes multiple `<h1>` issues  
   - Adds accessibility labels to empty buttons  
-- ߓ Generates **before vs. after** score comparison  
+-  Generates **before vs. after** score comparison  
 - ⬇️ One-click download of the optimized HTML  
 
 
