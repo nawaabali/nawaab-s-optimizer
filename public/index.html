@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lighthouse Optimizer</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231f2937'/%3E%3Cpath d='M20 36h24l-6 12H26z' fill='%23ffffff'/%3E%3Ccircle cx='32' cy='24' r='7' fill='%23a7f3d0'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0ea5e9">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg">
+    <div class="bg-grad one"></div>
+    <div class="bg-grad two"></div>
+  </div>
+
+  <header class="container header">
+    <div class="brand">
+      <div class="logo">ߚ</div>
+      <div>
+        <h1>Lighthouse Optimizer</h1>
+        <p class="sub">Upload → Audit → Auto-Fix → Download</p>
+      </div>
+    </div>
+    <nav class="nav">
+      <a class="nav-link" href="#">Docs</a>
+      <a class="nav-link" href="#">FAQ</a>
+      <a class="nav-link primary" href="#" onclick="document.getElementById('file').click()">Upload</a>
+    </nav>
+  </header>
+
+  <main class="container grid">
+    <section class="card hero">
+      <h2>Make your HTML score ߒ</h2>
+      <p>Drop your <code>.html</code> file below — we’ll run Lighthouse, auto-optimize (perf + a11y + SEO + best-practices), and give you a cleaned file.</p>
+
+      <form id="form" class="uploader" enctype="multipart/form-data">
+        <input id="file" type="file" name="html" accept=".html,.htm" required hidden />
+        <label for="file" class="dropzone" id="dropzone">
+          <div class="dz-icon">ߓ</div>
+          <div class="dz-text">
+            <b>Drag & drop</b> your HTML here<br/>
+            or <span class="link">browse</span> to choose
+          </div>
+        </label>
+        <button class="btn" type="submit">
+          <span class="btn-spinner" id="btnSpinner" aria-hidden="true"></span>
+          Audit & Optimize
+        </button>
+        <p class="hint">No data stored server-side. Reports are generated locally in this app.</p>
+      </form>
+    </section>
+
+    <section class="card results" id="result" hidden>
+      <div class="res-head">
+        <h3>Results</h3>
+        <div class="chips" id="scoreChips"></div>
+      </div>
+
+      <div class="meters">
+        <div class="meter">
+          <div class="meter-top">
+            <span>LCP</span><span id="lcpVal">–</span>
+          </div>
+          <div class="bar"><div id="lcpBar"></div></div>
+        </div>
+        <div class="meter">
+          <div class="meter-top">
+            <span>FCP</span><span id="fcpVal">–</span>
+          </div>
+          <div class="bar"><div id="fcpBar"></div></div>
+        </div>
+        <div class="meter">
+          <div class="meter-top">
+            <span>TBT</span><span id="tbtVal">–</span>
+          </div>
+          <div class="bar"><div id="tbtBar"></div></div>
+        </div>
+        <div class="meter">
+          <div class="meter-top">
+            <span>CLS</span><span id="clsVal">–</span>
+          </div>
+          <div class="bar"><div id="clsBar"></div></div>
+        </div>
+      </div>
+
+      <div class="links">
+        <a id="preLink" target="_blank" class="link">Pre Audit Report</a>
+        <a id="postLink" target="_blank" class="link">Post Audit Report</a>
+        <a id="dlHtml" download class="btn ghost">Download Optimized HTML</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <span>© Your Studio</span>
+    <span class="sep">•</span>
+    <span><a class="link" href="#">Privacy</a></span>
+  </footer>
+
+  <script>
+    // Drag & drop UI
+    const dz = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file');
+    ['dragenter','dragover'].forEach(evt => dz.addEventListener(evt, e => {
+      e.preventDefault(); e.stopPropagation(); dz.classList.add('drag');
+    }));
+    ['dragleave','drop'].forEach(evt => dz.addEventListener(evt, e => {
+      e.preventDefault(); e.stopPropagation(); dz.classList.remove('drag');
+    }));
+    dz.addEventListener('drop', (e) => {
+      const f = e.dataTransfer.files?.[0];
+      if (f) { fileInput.files = e.dataTransfer.files; }
+    });
+
+    // Submit handler
+    const form = document.getElementById('form');
+    const result = document.getElementById('result');
+    const chips = document.getElementById('scoreChips');
+    const btnSpinner = document.getElementById('btnSpinner');
+
+    const preLink = document.getElementById('preLink');
+    const postLink = document.getElementById('postLink');
+    const dlHtml = document.getElementById('dlHtml');
+
+    const lcpBar = document.getElementById('lcpBar');
+    const fcpBar = document.getElementById('fcpBar');
+    const tbtBar = document.getElementById('tbtBar');
+    const clsBar = document.getElementById('clsBar');
+    const lcpVal = document.getElementById('lcpVal');
+    const fcpVal = document.getElementById('fcpVal');
+    const tbtVal = document.getElementById('tbtVal');
+    const clsVal = document.getElementById('clsVal');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) { alert('Choose an HTML file first'); return; }
+
+      chips.innerHTML = '';
+      btnSpinner.classList.add('show');
+      result.hidden = false;
+      result.classList.add('loading');
+      lcpBar.style.width = fcpBar.style.width = tbtBar.style.width = clsBar.style.width = '0%';
+      lcpVal.textContent = fcpVal.textContent = tbtVal.textContent = clsVal.textContent = '…';
+
+      const fd = new FormData(form);
+
+      try {
+        const res = await fetch('/api/audit', { method: 'POST', body: fd });
+let data;
+try {
+  data = await res.json();
+} catch (err) {
+  const text = await res.text();
+  console.error("Non-JSON response:", text);
+  throw err;
+}
+
+        if (data.error) throw new Error(data.error);
+
+        // Score chips
+        const mkChip = (label, pre, post) => `
+          <div class="chip">
+            <span>${label}</span>
+            <b>${pre}</b>
+            <span class="arrow">→</span>
+            <b class="${post>=pre?'up':'down'}">${post}</b>
+          </div>`;
+        chips.innerHTML = [
+          mkChip('Performance', data.initialScores.performance, data.improvedScores.performance),
+          mkChip('Accessibility', data.initialScores.accessibility, data.improvedScores.accessibility),
+          mkChip('Best-Practices', data.initialScores.bestPractices, data.improvedScores.bestPractices),
+          mkChip('SEO', data.initialScores.seo, data.improvedScores.seo),
+        ].join('');
+
+        // CVW meters (best-effort visualization)
+        const setBar = (el, valStr, maxMs=8000) => {
+          // extract number in ms or s
+          let v = 0;
+          if (!valStr) { el.style.width='0%'; return; }
+          const parts = valStr.split(' ');
+          const n = parseFloat(parts[0]);
+          const unit = (parts[1]||'').toLowerCase();
+          if (unit.startsWith('s')) v = n*1000;
+          else v = n; // ms
+          const pct = Math.max(0, Math.min(100, 100 - (v/maxMs)*100));
+          el.style.width = pct + '%';
+        };
+        setBar(lcpBar, data.improvedScores.lcp, 6000);
+        setBar(fcpBar, data.improvedScores.fcp, 4000);
+        // For TBT lower is better; invert scale
+        const tbtParts = (data.improvedScores.tbt||'0 ms').split(' ');
+        const tbtMs = parseFloat(tbtParts[0]) || 0;
+        const tbtPct = Math.max(0, Math.min(100, 100 - (tbtMs/600)*100));
+        tbtBar.style.width = tbtPct + '%';
+        // CLS 0–1 map
+        const cls = parseFloat((data.improvedScores.cls||'0').split(' ')[0]) || 0;
+        clsBar.style.width = Math.max(0, Math.min(100, (1 - cls)*100)) + '%';
+
+        lcpVal.textContent = data.improvedScores.lcp || '–';
+        fcpVal.textContent = data.improvedScores.fcp || '–';
+        tbtVal.textContent = data.improvedScores.tbt || '–';
+        clsVal.textContent = data.improvedScores.cls || '–';
+
+        // Links
+        preLink.href = data.reportsDir + 'pre-lighthouse.html';
+        postLink.href = data.reportsDir + 'post-lighthouse.html';
+        dlHtml.href = data.downloadOptimized;
+
+      } catch (err) {
+        chips.innerHTML = `<div class="chip error">Error: ${err.message}</div>`;
+      } finally {
+        btnSpinner.classList.remove('show');
+        result.classList.remove('loading');
+      }
+    });
+  </script>
+</body>
+</html>
+
